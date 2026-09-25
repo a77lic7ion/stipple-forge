@@ -69,13 +69,13 @@ app.post('/api/projects/:id/source', async (req, res) => {
 
 app.post('/api/projects/:id/compile', async (req, res) => {
   const { id } = req.params;
-  const { dotDensity = 50000 } = req.body;
+  const { dotDensity = 50000, mode = 'mono' } = req.body;
   const job = newJob('compile', id);
   res.json({ jobId: job.id });
-  runCompileJob(job, id, dotDensity);
+  runCompileJob(job, id, dotDensity, mode);
 });
 
-async function runCompileJob(job, projectId, dotDensity = 50000) {
+async function runCompileJob(job, projectId, dotDensity = 50000, mode = 'mono') {
   job.startedAt = Date.now();
   setJob(job.id, { state: 'running', stage: 'Generating dots', progress: 0 });
   try {
@@ -85,18 +85,19 @@ async function runCompileJob(job, projectId, dotDensity = 50000) {
     const fullSrc = path.join(PROJECTS, projectId, srcFile);
     const outPath = path.join(PROJECTS, projectId, 'dots.json');
 
-    await runWorker(fullSrc, outPath, dotDensity);
+    await runWorker(fullSrc, outPath, dotDensity, mode);
     setJob(job.id, { state: 'done', stage: 'complete', progress: 100, finishedAt: Date.now() });
   } catch (e) {
     setJob(job.id, { state: 'error', error: e.message });
   }
 }
 
-function runWorker(src, out, dots) {
+function runWorker(src, out, dots, mode = 'mono') {
   return new Promise((resolve, reject) => {
     const pythonPath = process.env.PYTHON || process.env.HERESMESGEMENV || '/usr/bin/python3';
     const args = [path.join(ROOT, 'worker', 'image_to_dots.py'), src, out, String(dots)];
     if (process.env.INVERT_TONE === '1') args.push('--invert-tone');
+    if (mode && mode !== 'mono') args.push('--mode', mode);
     const proc = spawn(pythonPath, args, { cwd: ROOT });
     let stderr = '';
     proc.stderr.on('data', d => { stderr += d; });
