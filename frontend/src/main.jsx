@@ -115,8 +115,11 @@ function SettingsPanel({ settings, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    onSave({ models, selectedModelId: selectedId });
+    onSave({ ...settings, models, selectedModelId: selectedId });
   };
+
+  // Select model by clicking anywhere on the row
+  const selectModelRow = (id) => setSelectedId(id);
 
   return (
     <div className="panel" style={{ top: 80, right: 20, width: 480, maxHeight: '85vh', overflow: 'auto' }}>
@@ -169,8 +172,8 @@ function SettingsPanel({ settings, onSave, onClose }) {
 
       <h3 style={{ fontSize: 13, color: 'var(--muted)', marginTop: 16, marginBottom: 8 }}>Configured Models</h3>
       {models.map(m => (
-        <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', background: selectedId === m.id ? 'var(--accent)' : 'var(--surface)', borderRadius: 6, marginBottom: 4, opacity: selectedId === m.id ? 1 : 0.85, border: selectedId === m.id ? '2px solid var(--accent)' : '2px solid transparent' }}>
-          <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => selectModel(m.id)}>
+        <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', background: selectedId === m.id ? 'var(--accent)' : 'var(--surface)', borderRadius: 6, marginBottom: 4, opacity: selectedId === m.id ? 1 : 0.85, border: selectedId === m.id ? '2px solid var(--accent)' : '2px solid transparent', cursor: 'pointer' }} onClick={() => selectModelRow(m.id)}>
+          <div style={{ flex: 1 }}>
             <strong>{m.label}</strong> {m.free && <span style={{ fontSize: 9, background: 'var(--accent)', padding: '1px 4px', borderRadius: 3 }}>FREE</span>}
             {selectedId === m.id && <span style={{ fontSize: 9, background: 'var(--surface)', padding: '1px 4px', borderRadius: 3, marginLeft: 4 }}>✓ SELECTED</span>}
             <div style={{ fontSize: 10, color: 'var(--muted)' }}>{m.endpoint} / {m.model}</div>
