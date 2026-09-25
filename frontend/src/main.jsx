@@ -290,6 +290,29 @@ function App() {
     if (dots) { setPreviewDots(dots.dots); setPreviewProject(id); }
   };
 
+  // Export project as template JSON file
+  const exportTemplate = async (id) => {
+    const dots = await getDots(id);
+    if (!dots) return;
+    const template = {
+      version: 1,
+      name: projects.find(p => p.id === id)?.name || 'Untitled',
+      width: dots.width,
+      height: dots.height,
+      dotDensity: settings?.dotDensity || 50000,
+      edgeBiased: true,
+      dots: dots.dots,
+      exportedAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(template)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tokenart-template-${id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (<>
     <header><div><h1>Stipple Forge</h1><div className="tag">M0 + M1 — real compile with dot preview</div></div>
       <button className="btn" onClick={() => setShowSettings(true)} style={{ fontSize: 12, padding: '4px 10px' }}>⚙ Settings</button>
@@ -316,6 +339,7 @@ function App() {
                   <label className="btn" style={{ fontSize: 11, padding: '3px 8px' }}>Import<input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => e.target.files[0] && uploadSource(p.id, e.target.files[0])} /></label>
                   <button className="btn" style={{ fontSize: 11, padding: '3px 8px' }} disabled={!p.source} onClick={async () => { setPreviewDots(null); const j = await startCompile(p.id, settings.dotDensity); setActiveJob(j); }}>Compile</button>
                   <button className="btn" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => viewExisting(p.id)}>View</button>
+                  <button className="btn" style={{ fontSize: 11, padding: '3px 8px' }} disabled={!p.source} onClick={() => exportTemplate(p.id)}>Export</button>
                 </div>
               </div>
             ))}
