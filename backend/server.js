@@ -77,8 +77,7 @@ app.post('/api/projects/:id/compile', async (req, res) => {
 
 async function runCompileJob(job, projectId, dotDensity = 50000) {
   job.startedAt = Date.now();
-  setJob(job.id, { state: 'running', stage: 'P1 Structure', progress: 0 });
-  const passes = ['P1 Structure', 'P2 Gradient', 'P3 Detail', 'P4 Lines', 'P5 Accents', 'P6 Polish'];
+  setJob(job.id, { state: 'running', stage: 'Generating dots', progress: 0 });
   try {
     const files = await fs.readdir(path.join(PROJECTS, projectId));
     const srcFile = files.find(f => f.startsWith('source'));
@@ -86,11 +85,7 @@ async function runCompileJob(job, projectId, dotDensity = 50000) {
     const fullSrc = path.join(PROJECTS, projectId, srcFile);
     const outPath = path.join(PROJECTS, projectId, 'dots.json');
 
-    for (let i = 0; i < passes.length; i++) {
-      setJob(job.id, { stage: passes[i], progress: Math.round((i / passes.length) * 100) });
-      if (i === 0) await runWorker(fullSrc, outPath, dotDensity);
-      else await new Promise(r => setTimeout(r, 400));
-    }
+    await runWorker(fullSrc, outPath, dotDensity);
     setJob(job.id, { state: 'done', stage: 'complete', progress: 100, finishedAt: Date.now() });
   } catch (e) {
     setJob(job.id, { state: 'error', error: e.message });
@@ -99,11 +94,10 @@ async function runCompileJob(job, projectId, dotDensity = 50000) {
 
 function runWorker(src, out, dots) {
   return new Promise((resolve, reject) => {
-    const pythonPath = process.env.HERESMESGEMENV || '/home/shaun/.hermes/hermes-agent/venv/bin/python3';
-    const proc = spawn(pythonPath, [
-      path.join(ROOT, 'worker', 'image_to_dots.py'),
-      src, out, String(dots),
-    ], { cwd: ROOT });
+    const pythonPath = process.env.PYTHON || process.env.HERESMESGEMENV || '/usr/bin/python3';
+    const args = [path.join(ROOT, 'worker', 'image_to_dots.py'), src, out, String(dots)];
+    if (process.env.INVERT_TONE === '1') args.push('--invert-tone');
+    const proc = spawn(pythonPath, args, { cwd: ROOT });
     let stderr = '';
     proc.stderr.on('data', d => { stderr += d; });
     proc.on('close', code => {
