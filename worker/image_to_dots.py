@@ -71,7 +71,7 @@ def main():
 
     # Sample dots
     rng = np.random.default_rng(1701)
-    n_dots = min(max_dots, int(total * 0.4))
+    n_dots = min(max_dots, int(total * 1.0))
     u_vals = rng.random(n_dots)
     indices = np.searchsorted(cdf, u_vals)
 

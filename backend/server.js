@@ -69,12 +69,13 @@ app.post('/api/projects/:id/source', async (req, res) => {
 
 app.post('/api/projects/:id/compile', async (req, res) => {
   const { id } = req.params;
+  const { dotDensity = 50000 } = req.body;
   const job = newJob('compile', id);
   res.json({ jobId: job.id });
-  runCompileJob(job, id);
+  runCompileJob(job, id, dotDensity);
 });
 
-async function runCompileJob(job, projectId) {
+async function runCompileJob(job, projectId, dotDensity = 50000) {
   job.startedAt = Date.now();
   setJob(job.id, { state: 'running', stage: 'P1 Structure', progress: 0 });
   const passes = ['P1 Structure', 'P2 Gradient', 'P3 Detail', 'P4 Lines', 'P5 Accents', 'P6 Polish'];
@@ -87,7 +88,7 @@ async function runCompileJob(job, projectId) {
 
     for (let i = 0; i < passes.length; i++) {
       setJob(job.id, { stage: passes[i], progress: Math.round((i / passes.length) * 100) });
-      if (i === 0) await runWorker(fullSrc, outPath, 50000);
+      if (i === 0) await runWorker(fullSrc, outPath, dotDensity);
       else await new Promise(r => setTimeout(r, 400));
     }
     setJob(job.id, { state: 'done', stage: 'complete', progress: 100, finishedAt: Date.now() });
@@ -98,7 +99,8 @@ async function runCompileJob(job, projectId) {
 
 function runWorker(src, out, dots) {
   return new Promise((resolve, reject) => {
-    const proc = spawn('python3', [
+    const pythonPath = process.env.HERESMESGEMENV || '/home/shaun/.hermes/hermes-agent/venv/bin/python3';
+    const proc = spawn(pythonPath, [
       path.join(ROOT, 'worker', 'image_to_dots.py'),
       src, out, String(dots),
     ], { cwd: ROOT });

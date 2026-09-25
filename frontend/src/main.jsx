@@ -15,7 +15,7 @@ function useProjects() {
   const createProject = async (name) => { const r = await fetch(`${API}/api/projects`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) }); const p = await r.json(); refresh(); return p; };
   const uploadSource = async (id, file) => { const buf = await file.arrayBuffer(); let b = ''; const u = new Uint8Array(buf); for (let i = 0; i < u.length; i++) b += String.fromCharCode(u[i]); await fetch(`${API}/api/projects/${id}/source`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: file.name, data: btoa(b) }) }); refresh(); };
   const deleteProject = async (id) => { if (!confirm('Delete this project?')) return; await fetch(`${API}/api/projects/${id}`, { method: 'DELETE' }); refresh(); };
-  const startCompile = async (id) => { const r = await fetch(`${API}/api/projects/${id}/compile`, { method: 'POST' }); return (await r.json()).jobId; };
+  const startCompile = async (id, dotDensity = 50000) => { const r = await fetch(`${API}/api/projects/${id}/compile`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dotDensity }) }); return (await r.json()).jobId; };
   const getDots = async (id) => { const r = await fetch(`${API}/api/projects/${id}/dots`); return r.ok ? await r.json() : null; };
   return { projects, loading, refresh, createProject, uploadSource, deleteProject, startCompile, getDots };
 }
@@ -60,6 +60,14 @@ const PRESETS = [
   { label: 'Gemini', endpoint: 'https://generativelanguage.googleapis.com/v1', model: 'gemini-2.0-flash', free: true, desc: 'Google, free tier' },
   { label: 'Ollama (local)', endpoint: 'http://localhost:11434/v1', model: 'llama3.1', free: true, desc: 'Local, no API key needed' },
   { label: 'Mistral', endpoint: 'https://api.mistral.ai/v1', model: 'mistral-small-latest', free: false, desc: 'Paid, high quality' },
+];
+
+const DOT_PRESETS = [
+  { label: 'Draft', dots: 10000, desc: 'Fast preview, low detail' },
+  { label: 'Standard', dots: 50000, desc: 'Balanced detail and speed' },
+  { label: 'High', dots: 200000, desc: 'Detailed, slower' },
+  { label: 'Ultra', dots: 500000, desc: 'Near-photographic' },
+  { label: 'Max', dots: 1000000, desc: 'Maximum detail, slow' },
 ];
 
 function SettingsPanel({ settings, onSave, onClose }) {
@@ -190,6 +198,15 @@ function SettingsPanel({ settings, onSave, onClose }) {
         <button className="btn btn-primary" onClick={handleSave} style={{ flex: 1 }}>Save Settings</button>
         <button className="btn" onClick={onClose}>Cancel</button>
       </div>
+
+      <h3 style={{ fontSize: 13, color: 'var(--muted)', marginTop: 16, marginBottom: 8 }}>Dot Density</h3>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        {DOT_PRESETS.map(d => (
+          <button key={d.dots} className={`btn ${settings?.dotDensity === d.dots ? 'btn-primary' : ''}`} style={{ fontSize: 10, padding: '2px 8px' }} onClick={() => onSave({ ...settings, dotDensity: d.dots })}>
+            {d.label} ({d.dots.toLocaleString()})
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -239,7 +256,7 @@ function App() {
   const [previewDots, setPreviewDots] = useState(null);
   const [previewProject, setPreviewProject] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState({ models: [], selectedModelId: null });
+  const [settings, setSettings] = useState({ models: [], selectedModelId: null, dotDensity: 50000 });
 
   // Load settings from localStorage
   useEffect(() => {
@@ -294,7 +311,7 @@ function App() {
                 <p>{p.source ? `source: ${p.source}` : 'no source image'}<br />{new Date(p.created).toLocaleString()}</p>
                 <div className="row">
                   <label className="btn" style={{ fontSize: 11, padding: '3px 8px' }}>Import<input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => e.target.files[0] && uploadSource(p.id, e.target.files[0])} /></label>
-                  <button className="btn" style={{ fontSize: 11, padding: '3px 8px' }} disabled={!p.source} onClick={async () => { setPreviewDots(null); const j = await startCompile(p.id); setActiveJob(j); }}>Compile</button>
+                  <button className="btn" style={{ fontSize: 11, padding: '3px 8px' }} disabled={!p.source} onClick={async () => { setPreviewDots(null); const j = await startCompile(p.id, settings.dotDensity); setActiveJob(j); }}>Compile</button>
                   <button className="btn" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => viewExisting(p.id)}>View</button>
                 </div>
               </div>
