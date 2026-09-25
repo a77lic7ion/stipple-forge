@@ -61,6 +61,12 @@ const PRESETS = [
   { label: 'Gemini', endpoint: 'https://generativelanguage.googleapis.com/v1', model: 'gemini-2.0-flash', free: true, desc: 'Google, free tier' },
   { label: 'Ollama (local)', endpoint: 'http://localhost:11434/v1', model: 'llama3.1', free: true, desc: 'Local, no API key needed' },
   { label: 'Mistral', endpoint: 'https://api.mistral.ai/v1', model: 'mistral-small-latest', free: false, desc: 'Paid, high quality' },
+  { label: 'Groq', endpoint: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile', free: false, desc: 'Fast inference' },
+  { label: 'Anthropic', endpoint: 'https://api.anthropic.com/v1', model: 'claude-3-5-sonnet-20241022', free: false, desc: 'Claude 3.5 Sonnet' },
+  { label: 'Silicon Flow', endpoint: 'https://api.siliconflow.cn/v1', model: 'meta-llama/llama-3.1-8b-instruct', free: false, desc: 'SiliconFlow API' },
+  { label: 'Cloudflare', endpoint: 'https://api.cloudflare.com/client/v4', model: '@cf/meta/llama-3.1-8b-instruct', free: false, desc: 'Cloudflare Workers AI' },
+  { label: 'Moonshot (Kimi)', endpoint: 'https://api.moonshot.cn/v1', model: 'moonshotai/kimi-k2-instruct', free: false, desc: 'Kimi K2' },
+  { label: 'Tavily', endpoint: 'https://api.tavily.com/v1', model: 'tavily-research', free: false, desc: 'Tavily research' },
 ];
 
 const DOT_PRESETS = [
