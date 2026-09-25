@@ -269,6 +269,10 @@ function App() {
   const [previewTab, setPreviewTab] = useState('edge');
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState({ models: [], selectedModelId: null, dotDensity: 50000 });
+  const [promptOpen, setPromptOpen] = useState(false);
+  const [prompt, setPrompt] = useState('');
+  const [prompting, setPrompting] = useState(false);
+  const [promptResult, setPromptResult] = useState(null);
 
   // Load settings from localStorage
   useEffect(() => {
@@ -281,6 +285,39 @@ function App() {
   const saveSettings = (s) => {
     setSettings(s);
     localStorage.setItem('stipple-settings', JSON.stringify(s));
+  };
+
+  const selectedModel = settings.models.find(m => m.id === settings.selectedModelId) || null;
+
+  const applyPrompt = async () => {
+    if (!prompt.trim() || !selectedModel) { setPromptResult({ ok: false, msg: 'Enter a prompt and select a model' }); return; }
+    setPrompting(true);
+    setPromptResult(null);
+    try {
+      const resp = await fetch(`${API}/api/prompt-edit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: prompt.trim(),
+          dots: previewDots,
+          width: 600,
+          height: 400,
+          model: selectedModel.model,
+          endpoint: selectedModel.endpoint,
+          apiKey: selectedModel.apiKey,
+        }),
+      });
+      const data = await resp.json();
+      if (data.ok && data.dots) {
+        setPreviewDots(data.dots);
+        setPromptResult({ ok: true, msg: data.msg || 'Prompt applied', newCount: data.dots.length });
+      } else {
+        setPromptResult({ ok: false, msg: data.error || 'Prompt failed' });
+      }
+    } catch (e) {
+      setPromptResult({ ok: false, msg: e.message });
+    }
+    setPrompting(false);
   };
 
   const onCreate = async () => { if (!name.trim()) return; setBusy(true); await createProject(name.trim()); setName(''); setBusy(false); };
@@ -378,6 +415,48 @@ function App() {
           onSave={(s) => { saveSettings(s); setShowSettings(false); }}
           onClose={() => setShowSettings(false)}
         />
+      )}
+
+      {/* Prompt Panel - M2: NL edits to stipple pattern */}
+      {previewDots && previewDots.length > 0 && (
+        <div className="stage" style={{ marginTop: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <strong>Prompt Edit — NL stipple modifications</strong>
+            <button className="btn" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => setPromptOpen(!promptOpen)}>
+              {promptOpen ? 'Close' : 'Open'} Prompt
+            </button>
+          </div>
+          {promptOpen && (
+            <div style={{ padding: 12, background: 'var(--surface)', borderRadius: 8, marginBottom: 12 }}>
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Describe changes to the stipple pattern, e.g. 'add more dots in the eyes', 'reduce density in the background', 'increase contrast in shadows'"
+                style={{ width: '100%', height: 60, padding: 8, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 13, resize: 'vertical' }}
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+                <button className="btn btn-primary" onClick={applyPrompt} disabled={!prompt.trim() || prompting}>
+                  {prompting ? 'Processing…' : 'Apply Prompt'}
+                </button>
+                <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+                  Model: {selectedModel ? selectedModel.label : 'none'} | Dots: {previewDots.length.toLocaleString()}
+                </span>
+              </div>
+              {promptResult && (
+                <div style={{ marginTop: 8, padding: 8, background: promptResult.ok ? 'var(--accent)' : 'var(--warn)', borderRadius: 4, fontSize: 11 }}>
+                  {promptResult.ok
+                    ? `✓ ${promptResult.msg} — ${promptResult.newCount.toLocaleString()} dots`
+                    : `✗ ${promptResult.msg}`}
+                </div>
+              )}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+            <button className={`btn ${previewTab === 'edge' ? 'btn-primary' : ''}`} style={{ fontSize: 10, padding: '2px 8px' }} onClick={() => setPreviewTab('edge')}>Edge Outline</button>
+            <button className={`btn ${previewTab === 'result' ? 'btn-primary' : ''}`} style={{ fontSize: 10, padding: '2px 8px' }} onClick={() => setPreviewTab('result')}>End Result</button>
+          </div>
+          <DotPreview3D dots={previewDots} width={600} height={400} mode={previewTab} />
+        </div>
       )}
     </main>
   </>);

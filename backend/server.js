@@ -135,5 +135,80 @@ app.get('/api/projects/:id/dots', async (req, res) => {
   }
 });
 
+// Prompt edit: NL instructions to modify stipple dots via LLM
+app.post('/api/prompt-edit', async (req, res) => {
+  try {
+    const { prompt, dots, width, height, model, endpoint, apiKey } = req.body;
+    if (!prompt || !dots || !model || !endpoint || !apiKey) {
+      return res.status(400).json({ error: 'Missing required fields: prompt, dots, model, endpoint, apiKey' });
+    }
+
+    // Call the LLM to get dot modifications
+    const llmResp = await fetch(`${endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: 'You modify stipple dot patterns. Given a prompt and an array of dots [x, z, r, g, b, size], return a JSON array of modified dots. You can add, remove, or adjust dots. Keep the same format: [[x,z,r,g,b,size],...]. Respond with ONLY the JSON array, no other text.',
+          },
+          {
+            role: 'user',
+            content: `Prompt: ${prompt}\nCurrent dots (${dots.length}): ${JSON.stringify(dots.slice(0, 50))}... (showing first 50 of ${dots.length})\nCanvas: ${width}x${height}\nReturn the modified dot array as JSON.`,
+          },
+        ],
+        max_tokens: 4096,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!llmResp.ok) {
+      const err = await llmResp.text();
+      return res.status(500).json({ error: `LLM error: ${err}` });
+    }
+
+    const llmData = await llmResp.json();
+    const content = llmData.choices?.[0]?.message?.content?.trim();
+    if (!content) {
+      return res.status(500).json({ error: 'LLM returned empty response' });
+    }
+
+    // Parse the JSON array from the LLM response
+    let newDots;
+    try {
+      // Try to find JSON array in the response
+      const match = content.match(/\[\[.*?\]\]/s);
+      if (match) {
+        newDots = JSON.parse(match[0]);
+      } else {
+        newDots = JSON.parse(content);
+      }
+    } catch (e) {
+      return res.status(500).json({ error: `Failed to parse LLM response: ${e.message}` });
+    }
+
+    if (!Array.isArray(newDots) || newDots.length === 0) {
+      return res.status(400).json({ error: 'LLM returned invalid dot array' });
+    }
+
+    // Validate dot format
+    const validDots = newDots.filter(d =>
+      Array.isArray(d) && d.length >= 6 &&
+      typeof d[0] === 'number' && typeof d[1] === 'number' &&
+      typeof d[2] === 'number' && typeof d[3] === 'number' &&
+      typeof d[4] === 'number' && typeof d[5] === 'number'
+    );
+
+    res.json({ ok: true, dots: validDots, msg: `Applied "${prompt}" — ${validDots.length} dots` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const server = http.createServer(app);
 server.listen(PORT, '0.0.0.0', () => console.log(`Stipple Forge backend on http://0.0.0.0:${PORT}`));
