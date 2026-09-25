@@ -171,6 +171,7 @@ function SettingsPanel({ settings, onSave, onClose }) {
       )}
 
       <h3 style={{ fontSize: 13, color: 'var(--muted)', marginTop: 16, marginBottom: 8 }}>Configured Models</h3>
+      {models.length === 0 && <div style={{ fontSize: 11, color: 'var(--muted)', padding: '8px 0' }}>No models yet. Add a preset above or enter a custom model.</div>}
       {models.map(m => (
         <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', background: selectedId === m.id ? 'var(--accent)' : 'var(--surface)', borderRadius: 6, marginBottom: 4, opacity: selectedId === m.id ? 1 : 0.85, border: selectedId === m.id ? '2px solid var(--accent)' : '2px solid transparent', cursor: 'pointer' }} onClick={() => selectModelRow(m.id)}>
           <div style={{ flex: 1 }}>
