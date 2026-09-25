@@ -53,45 +53,141 @@ function DotPreview({ dots, width, height }) {
   return <canvas ref={canvasRef} width={600} height={400} style={{ width: '100%', height: 'auto', border: '1px solid var(--line)' }} />;
 }
 
-// Settings panel — LLM model configuration
-function SettingsPanel({ settings, onSave, onClose }) {
-  const [form, setForm] = useState(settings || { models: [] });
-  const [newModel, setNewModel] = useState({ label: '', endpoint: '', apiKey: '', model: '' });
+// Preset model configs
+const PRESETS = [
+  { label: 'OpenRouter (free)', endpoint: 'https://openrouter.ai/api/v1', model: 'mistralai/mixtral-8x7b-instruct', free: true, desc: 'Free tier, diverse models' },
+  { label: 'Nous (free)', endpoint: 'https://api.nous.xyz/v1', model: 'inclusionai/ling-3.0-flash-sante', free: true, desc: 'Ling flash, fast and capable' },
+  { label: 'Gemini', endpoint: 'https://generativelanguage.googleapis.com/v1', model: 'gemini-2.0-flash', free: true, desc: 'Google, free tier' },
+  { label: 'Ollama (local)', endpoint: 'http://localhost:11434/v1', model: 'llama3.1', free: true, desc: 'Local, no API key needed' },
+  { label: 'Mistral', endpoint: 'https://api.mistral.ai/v1', model: 'mistral-small-latest', free: false, desc: 'Paid, high quality' },
+];
 
-  const addModel = () => {
+function SettingsPanel({ settings, onSave, onClose }) {
+  const [models, setModels] = useState(settings?.models || []);
+  const [selectedId, setSelectedId] = useState(settings?.selectedModelId || null);
+  const [newModel, setNewModel] = useState({ label: '', endpoint: '', apiKey: '', model: '' });
+  const [testing, setTesting] = useState(null);
+  const [testResult, setTestResult] = useState(null);
+  const [activeTab, setActiveTab] = useState('presets');
+
+  const addPreset = (preset) => {
+    const m = { ...preset, id: Date.now(), apiKey: '' };
+    setModels([...models, m]);
+    if (!selectedId) setSelectedId(m.id);
+  };
+  const removeModel = (id) => {
+    setModels(models.filter(m => m.id !== id));
+    if (selectedId === id) setSelectedId(models[0]?.id || null);
+  };
+  const selectModel = (id) => setSelectedId(id);
+  const addCustom = () => {
     if (!newModel.label || !newModel.endpoint) return;
-    setForm({ ...form, models: [...form.models, { ...newModel, id: Date.now() }] });
+    const m = { ...newModel, id: Date.now(), free: false };
+    setModels([...models, m]);
     setNewModel({ label: '', endpoint: '', apiKey: '', model: '' });
   };
-  const removeModel = (id) => setForm({ ...form, models: form.models.filter(m => m.id !== id) });
+
+  const testApiKey = async (m) => {
+    setTesting(m.id);
+    setTestResult(null);
+    try {
+      const resp = await fetch(`${m.endpoint}/models`, {
+        headers: { 'Authorization': `Bearer ${m.apiKey}`, 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(10000)
+      });
+      if (resp.ok) {
+        setTestResult({ ok: true, msg: 'Connection successful' });
+      } else {
+        setTestResult({ ok: false, msg: `HTTP ${resp.status}: ${resp.statusText}` });
+      }
+    } catch (e) {
+      setTestResult({ ok: false, msg: e.message });
+    }
+    setTesting(null);
+  };
+
+  const handleSave = () => {
+    onSave({ models, selectedModelId: selectedId });
+  };
 
   return (
-    <div className="panel" style={{ top: 80, right: 20, width: 400, maxHeight: '80vh', overflow: 'auto' }}>
+    <div className="panel" style={{ top: 80, right: 20, width: 480, maxHeight: '85vh', overflow: 'auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h2 style={{ fontSize: 16, margin: 0 }}>Settings</h2>
+        <h2 style={{ fontSize: 16, margin: 0 }}>⚙ Settings</h2>
         <button className="btn" onClick={onClose}>✕</button>
       </div>
 
-      <h3 style={{ fontSize: 13, color: 'var(--muted)', marginTop: 16, marginBottom: 8 }}>LLM Models</h3>
-      {form.models.map(m => (
-        <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', background: 'var(--surface)', borderRadius: 6, marginBottom: 4 }}>
-          <div>
-            <strong>{m.label}</strong>
-            <div style={{ fontSize: 10, color: 'var(--muted)' }}>{m.endpoint} / {m.model}</div>
-          </div>
-          <button className="btn" style={{ fontSize: 10, padding: '2px 6px', color: 'var(--warn)' }} onClick={() => removeModel(m.id)}>✕</button>
-        </div>
-      ))}
-      <div style={{ marginTop: 8, padding: 8, background: 'var(--surface)', borderRadius: 6 }}>
-        <input placeholder="Label (e.g. Ling Flash)" value={newModel.label} onChange={(e) => setNewModel({ ...newModel, label: e.target.value })} style={{ width: '100%', marginBottom: 4, padding: 4 }} />
-        <input placeholder="Endpoint (e.g. https://api.nous.xyz/v1)" value={newModel.endpoint} onChange={(e) => setNewModel({ ...newModel, endpoint: e.target.value })} style={{ width: '100%', marginBottom: 4, padding: 4 }} />
-        <input placeholder="API Key" value={newModel.apiKey} onChange={(e) => setNewModel({ ...newModel, apiKey: e.target.value })} style={{ width: '100%', marginBottom: 4, padding: 4 }} />
-        <input placeholder="Model (e.g. ling-3.0-flash-sante)" value={newModel.model} onChange={(e) => setNewModel({ ...newModel, model: e.target.value })} style={{ width: '100%', marginBottom: 4, padding: 4 }} />
-        <button className="btn btn-primary" onClick={addModel} style={{ width: '100%' }}>Add Model</button>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+        <button className={`btn ${activeTab === 'presets' ? 'btn-primary' : ''}`} onClick={() => setActiveTab('presets')}>Presets</button>
+        <button className={`btn ${activeTab === 'custom' ? 'btn-primary' : ''}`} onClick={() => setActiveTab('custom')}>Custom</button>
       </div>
 
-      <div style={{ marginTop: 16 }}>
-        <button className="btn btn-primary" onClick={() => onSave(form)}>Save Settings</button>
+      {activeTab === 'presets' && (
+        <div>
+          <h3 style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>Quick Add — Free Models</h3>
+          {PRESETS.filter(p => p.free).map(p => (
+            <div key={p.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', background: 'var(--surface)', borderRadius: 6, marginBottom: 4 }}>
+              <div>
+                <strong>{p.label}</strong>
+                <div style={{ fontSize: 10, color: 'var(--muted)' }}>{p.desc}</div>
+                <div style={{ fontSize: 9, color: 'var(--muted)' }}>{p.endpoint} / {p.model}</div>
+              </div>
+              <button className="btn btn-primary" style={{ fontSize: 10, padding: '2px 8px' }} onClick={() => addPreset(p)}>+ Add</button>
+            </div>
+          ))}
+          <h3 style={{ fontSize: 13, color: 'var(--muted)', marginTop: 16, marginBottom: 8 }}>Paid Options</h3>
+          {PRESETS.filter(p => !p.free).map(p => (
+            <div key={p.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', background: 'var(--surface)', borderRadius: 6, marginBottom: 4 }}>
+              <div>
+                <strong>{p.label}</strong>
+                <div style={{ fontSize: 10, color: 'var(--muted)' }}>{p.desc}</div>
+                <div style={{ fontSize: 9, color: 'var(--muted)' }}>{p.endpoint} / {p.model}</div>
+              </div>
+              <button className="btn" style={{ fontSize: 10, padding: '2px 8px' }} onClick={() => addPreset(p)}>+ Add</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {activeTab === 'custom' && (
+        <div style={{ padding: 8, background: 'var(--surface)', borderRadius: 6 }}>
+          <input placeholder="Label" value={newModel.label} onChange={(e) => setNewModel({ ...newModel, label: e.target.value })} style={{ width: '100%', marginBottom: 4, padding: 4 }} />
+          <input placeholder="Endpoint (e.g. https://api.openrouter.ai/api/v1)" value={newModel.endpoint} onChange={(e) => setNewModel({ ...newModel, endpoint: e.target.value })} style={{ width: '100%', marginBottom: 4, padding: 4 }} />
+          <input placeholder="Model (e.g. mistralai/mistral-small)" value={newModel.model} onChange={(e) => setNewModel({ ...newModel, model: e.target.value })} style={{ width: '100%', marginBottom: 4, padding: 4 }} />
+          <input placeholder="API Key" value={newModel.apiKey} onChange={(e) => setNewModel({ ...newModel, apiKey: e.target.value })} style={{ width: '100%', marginBottom: 4, padding: 4 }} />
+          <button className="btn btn-primary" onClick={addCustom} style={{ width: '100%' }}>Add Custom Model</button>
+        </div>
+      )}
+
+      <h3 style={{ fontSize: 13, color: 'var(--muted)', marginTop: 16, marginBottom: 8 }}>Configured Models</h3>
+      {models.map(m => (
+        <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', background: selectedId === m.id ? 'var(--accent)' : 'var(--surface)', borderRadius: 6, marginBottom: 4, opacity: selectedId === m.id ? 1 : 0.85 }}>
+          <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => selectModel(m.id)}>
+            <strong>{m.label}</strong> {m.free && <span style={{ fontSize: 9, background: 'var(--accent)', padding: '1px 4px', borderRadius: 3 }}>FREE</span>}
+            <div style={{ fontSize: 10, color: 'var(--muted)' }}>{m.endpoint} / {m.model}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <input placeholder="API key" type="password" value={m.apiKey} onChange={(e) => {
+              const updated = models.map(x => x.id === m.id ? { ...x, apiKey: e.target.value } : x);
+              setModels(updated);
+            }} style={{ width: 100, fontSize: 10, padding: 2 }} />
+            <button className="btn" style={{ fontSize: 9, padding: '2px 6px' }} onClick={() => testApiKey(m)} disabled={testing === m.id}>
+              {testing === m.id ? '…' : 'Test'}
+            </button>
+            <button className="btn" style={{ fontSize: 9, padding: '2px 6px', color: 'var(--warn)' }} onClick={() => removeModel(m.id)}>✕</button>
+          </div>
+        </div>
+      ))}
+
+      {testResult && (
+        <div style={{ marginTop: 8, padding: 6, background: testResult.ok ? 'var(--accent)' : 'var(--warn)', borderRadius: 4, fontSize: 11 }}>
+          {testResult.msg}
+        </div>
+      )}
+
+      <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+        <button className="btn btn-primary" onClick={handleSave} style={{ flex: 1 }}>Save Settings</button>
+        <button className="btn" onClick={onClose}>Cancel</button>
       </div>
     </div>
   );
@@ -142,7 +238,7 @@ function App() {
   const [previewDots, setPreviewDots] = useState(null);
   const [previewProject, setPreviewProject] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState({ models: [] });
+  const [settings, setSettings] = useState({ models: [], selectedModelId: null });
 
   // Load settings from localStorage
   useEffect(() => {
