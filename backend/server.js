@@ -117,6 +117,17 @@ app.get('/api/jobs/:jobId', (req, res) => {
   res.json(j);
 });
 
+app.delete('/api/projects/:id', async (req, res) => {
+  const { id } = req.params;
+  const projectDir = path.join(PROJECTS, id);
+  try {
+    await fs.rm(projectDir, { recursive: true, force: true });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/projects/:id/dots', async (req, res) => {
   const { id } = req.params;
   const p = path.join(PROJECTS, id, 'dots.json');

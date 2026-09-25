@@ -53,6 +53,50 @@ function DotPreview({ dots, width, height }) {
   return <canvas ref={canvasRef} width={600} height={400} style={{ width: '100%', height: 'auto', border: '1px solid var(--line)' }} />;
 }
 
+// Settings panel — LLM model configuration
+function SettingsPanel({ settings, onSave, onClose }) {
+  const [form, setForm] = useState(settings || { models: [] });
+  const [newModel, setNewModel] = useState({ label: '', endpoint: '', apiKey: '', model: '' });
+
+  const addModel = () => {
+    if (!newModel.label || !newModel.endpoint) return;
+    setForm({ ...form, models: [...form.models, { ...newModel, id: Date.now() }] });
+    setNewModel({ label: '', endpoint: '', apiKey: '', model: '' });
+  };
+  const removeModel = (id) => setForm({ ...form, models: form.models.filter(m => m.id !== id) });
+
+  return (
+    <div className="panel" style={{ top: 80, right: 20, width: 400, maxHeight: '80vh', overflow: 'auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <h2 style={{ fontSize: 16, margin: 0 }}>Settings</h2>
+        <button className="btn" onClick={onClose}>✕</button>
+      </div>
+
+      <h3 style={{ fontSize: 13, color: 'var(--muted)', marginTop: 16, marginBottom: 8 }}>LLM Models</h3>
+      {form.models.map(m => (
+        <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', background: 'var(--surface)', borderRadius: 6, marginBottom: 4 }}>
+          <div>
+            <strong>{m.label}</strong>
+            <div style={{ fontSize: 10, color: 'var(--muted)' }}>{m.endpoint} / {m.model}</div>
+          </div>
+          <button className="btn" style={{ fontSize: 10, padding: '2px 6px', color: 'var(--warn)' }} onClick={() => removeModel(m.id)}>✕</button>
+        </div>
+      ))}
+      <div style={{ marginTop: 8, padding: 8, background: 'var(--surface)', borderRadius: 6 }}>
+        <input placeholder="Label (e.g. Ling Flash)" value={newModel.label} onChange={(e) => setNewModel({ ...newModel, label: e.target.value })} style={{ width: '100%', marginBottom: 4, padding: 4 }} />
+        <input placeholder="Endpoint (e.g. https://api.nous.xyz/v1)" value={newModel.endpoint} onChange={(e) => setNewModel({ ...newModel, endpoint: e.target.value })} style={{ width: '100%', marginBottom: 4, padding: 4 }} />
+        <input placeholder="API Key" value={newModel.apiKey} onChange={(e) => setNewModel({ ...newModel, apiKey: e.target.value })} style={{ width: '100%', marginBottom: 4, padding: 4 }} />
+        <input placeholder="Model (e.g. ling-3.0-flash-sante)" value={newModel.model} onChange={(e) => setNewModel({ ...newModel, model: e.target.value })} style={{ width: '100%', marginBottom: 4, padding: 4 }} />
+        <button className="btn btn-primary" onClick={addModel} style={{ width: '100%' }}>Add Model</button>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <button className="btn btn-primary" onClick={() => onSave(form)}>Save Settings</button>
+      </div>
+    </div>
+  );
+}
+
 function JobMonitor({ jobId, onDone }) {
   const [job, setJob] = useState(null);
   useEffect(() => {
@@ -97,6 +141,21 @@ function App() {
   const [activeJob, setActiveJob] = useState(null);
   const [previewDots, setPreviewDots] = useState(null);
   const [previewProject, setPreviewProject] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState({ models: [] });
+
+  // Load settings from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('stipple-settings');
+      if (saved) setSettings(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  const saveSettings = (s) => {
+    setSettings(s);
+    localStorage.setItem('stipple-settings', JSON.stringify(s));
+  };
 
   const onCreate = async () => { if (!name.trim()) return; setBusy(true); await createProject(name.trim()); setName(''); setBusy(false); };
   const onJobDone = async (job) => {
@@ -115,7 +174,9 @@ function App() {
   };
 
   return (<>
-    <header><div><h1>Stipple Forge</h1><div className="tag">M0 + M1 — real compile with dot preview</div></div></header>
+    <header><div><h1>Stipple Forge</h1><div className="tag">M0 + M1 — real compile with dot preview</div></div>
+      <button className="btn" onClick={() => setShowSettings(true)} style={{ fontSize: 12, padding: '4px 10px' }}>⚙ Settings</button>
+    </header>
     <main>
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
         <div><label style={{ display: 'block', fontSize: 11, color: 'var(--muted)' }}>New project</label><input value={name} onChange={(e) => setName(e.target.value)} placeholder="My scene" style={{ width: 220 }} /></div>
@@ -155,6 +216,14 @@ function App() {
           </div>
           <DotPreview dots={previewDots} width={600} height={400} />
         </div>
+      )}
+
+      {showSettings && (
+        <SettingsPanel
+          settings={settings}
+          onSave={(s) => { saveSettings(s); setShowSettings(false); }}
+          onClose={() => setShowSettings(false)}
+        />
       )}
     </main>
   </>);
