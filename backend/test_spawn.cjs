@@ -1,0 +1,12 @@
+const { spawn } = require('child_process');
+const path = require('path');
+const ROOT = path.resolve(__dirname, '..');
+console.log('ROOT:', ROOT);
+const worker = path.join(ROOT, 'worker', 'image_to_dots.py');
+console.log('worker:', worker);
+const src = '/home/shaun/stipple-forge/projects/c20bcb1fc638/source.png';
+const out = '/home/shaun/stipple-forge/projects/c20bcb1fc638/dots.json';
+const proc = spawn('python3', [worker, src, out, '50000'], { cwd: ROOT });
+proc.stdout.on('data', d => console.log('stdout:', d.toString()));
+proc.stderr.on('data', d => console.log('stderr:', d.toString()));
+proc.on('close', code => console.log('exit:', code));

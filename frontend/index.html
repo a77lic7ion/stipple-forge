@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stipple Forge</title>
+  <style>
+    :root { --bg: #0e1116; --panel: rgba(20,24,32,.92); --line: rgba(236,231,220,.15); --text: #ece7dc; --muted: #9aa39e; --accent: #d2a869; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 ui-monospace, monospace; }
+    header { padding: 16px 24px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
+    header h1 { margin: 0; font-size: 16px; letter-spacing: -.03em; }
+    header .tag { color: var(--muted); font-size: 11px; }
+    main { padding: 24px; }
+    .btn { background: var(--panel); border: 1px solid var(--line); color: var(--text); padding: 7px 14px; cursor: pointer; font: inherit; }
+    .btn:hover { border-color: var(--accent); }
+    .btn-primary { background: var(--accent); color: #1a1a1a; border-color: transparent; font-weight: 600; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 16px; }
+    .card { border: 1px solid var(--line); padding: 16px; background: var(--panel); }
+    .card h3 { margin: 0 0 4px; font-size: 13px; }
+    .card p { margin: 0; color: var(--muted); font-size: 11px; }
+    .row { display: flex; gap: 8px; margin-top: 8px; }
+    .stage { margin-top: 16px; padding: 16px; border: 1px solid var(--line); background: var(--panel); }
+    .progress { height: 4px; background: var(--line); margin-top: 8px; }
+    .progress > i { display: block; height: 4px; background: var(--accent); transition: width .3s; }
+    .empty { text-align: center; color: var(--muted); padding: 80px 0; }
+    input, select { background: var(--bg); border: 1px solid var(--line); color: var(--text); padding: 6px 10px; font: inherit; }
+    .spinner {
+      display: inline-block; width: 12px; height: 12px;
+      border: 2px solid var(--line); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>
