@@ -52,7 +52,12 @@ def main():
         tnorm = np.zeros_like(tone)
 
     # Per-pixel probability
-    prob = (0.05 + 0.95 * tnorm) * (1.0 + edges * 1.8)
+    # Edge boost: 3x density along edges for architectural stipple look
+    edge_boost = 3.0
+    prob = (0.05 + 0.95 * tnorm) * (1.0 + edges * edge_boost)
+    # Additional edge-only pass: extra dots along strong edges
+    edge_mask = (edges > 0.5).astype(float)
+    prob = prob + edge_mask * 0.3
     prob = np.maximum(prob, 0)
     # Zero out near-transparent pixels
     prob[a < 0.03] = 0
