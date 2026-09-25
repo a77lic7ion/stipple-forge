@@ -7,4 +7,10 @@ export default defineConfig({
     port: 5173,
     proxy: { '/api': 'http://localhost:8766', '/ws': { target: 'ws://localhost:8766', ws: true } },
   },
+  resolve: {
+    alias: {
+      'three': '/node_modules/three/build/three.module.js',
+      'three/addons/': '/node_modules/three/examples/jsm/',
+    },
+  },
 });

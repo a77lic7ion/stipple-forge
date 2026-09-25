@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
+import DotPreview3D from './DotPreview3D.jsx';
 
 const API = '';
 
@@ -259,6 +260,7 @@ function App() {
   const [activeJob, setActiveJob] = useState(null);
   const [previewDots, setPreviewDots] = useState(null);
   const [previewProject, setPreviewProject] = useState(null);
+  const [previewTab, setPreviewTab] = useState('edge');
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState({ models: [], selectedModelId: null, dotDensity: 50000 });
 
@@ -356,7 +358,11 @@ function App() {
             <strong>Preview — {previewDots.length.toLocaleString()} dots</strong>
             <button className="btn" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => { setPreviewDots(null); setPreviewProject(null); }}>Close</button>
           </div>
-          <DotPreview dots={previewDots} width={600} height={400} />
+          <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+            <button className="btn btn-primary" style={{ fontSize: 10, padding: '2px 8px' }} onClick={() => setPreviewTab('edge')}>Edge Outline</button>
+            <button className="btn" style={{ fontSize: 10, padding: '2px 8px' }} onClick={() => setPreviewTab('result')}>End Result</button>
+          </div>
+          <DotPreview3D dots={previewDots} width={600} height={400} mode={previewTab} />
         </div>
       )}
 
