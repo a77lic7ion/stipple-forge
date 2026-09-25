@@ -341,12 +341,16 @@ function App() {
     const dots = await getDots(id);
     if (!dots) return;
     const template = {
-      version: 1,
+      version: 2,
       name: projects.find(p => p.id === id)?.name || 'Untitled',
       width: dots.width,
       height: dots.height,
       dotDensity: settings?.dotDensity || 50000,
       edgeBiased: true,
+      mode: dots.mode || 'mono',
+      edges: dots.edges || 'basic',
+      seed: dots.seed,
+      stats: { count: dots.count },
       dots: dots.dots,
       exportedAt: new Date().toISOString(),
     };
