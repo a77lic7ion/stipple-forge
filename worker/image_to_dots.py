@@ -5,15 +5,18 @@ Proportional sampling: dots cluster where the image has content (bright areas, e
 sparse where it's blank/dark. Shading gradients survive as dot-density gradients.
 
 Uses weighted Poisson-disc sampling for even spatial coverage without clumping.
-Supports silhouette/detail edge layers, face/feature masks, and spot-color modes.
+Supports silhouette/detail edge layers, face/feature masks, spot-color modes,
+print tiling, and packed binary templates.
 
-Usage: python3 image_to_dots.py <input_image> <output_json> [max_dots] [--invert-tone] [--mode mono|spot2|spot4|rgb]
+Usage: python3 image_to_dots.py <input_image> <output_json> [max_dots] [--invert-tone] [--mode mono|spot2|spot4|rgb] [--tile-cols N] [--tile-rows N] [--bleed MM]
 """
 import json
 import math
 import random
 import sys
 import numpy as np
+import struct
+import zlib
 
 
 def weighted_poisson_sample(prob, min_dist, max_attempts=30, seed=1701):
@@ -151,16 +154,65 @@ def build_importance_mask(data, sw, sh):
     return mask
 
 
+def pack_binary(dots, width, height, mode, edges, seed, stats):
+    """Pack dots into a compact binary format for large templates.
+
+    Format:
+    - 4 bytes: magic 'TKTA'
+    - 2 bytes: version (2)
+    - 4 bytes: dot count
+    - 4 bytes: width
+    - 4 bytes: height
+    - 1 byte: mode (0=mono, 1=spot2, 2=spot4, 3=rgb)
+    - 1 byte: edges (0=basic, 1=silhouette+detail)
+    - 4 bytes: seed
+    - 4 bytes: stats count
+    - For each dot: 6 * 4 bytes = 24 bytes (x, z, r, g, b, size as float32)
+    """
+    magic = b'TKTA'
+    version = struct.pack('<H', 2)
+    count = struct.pack('<I', len(dots))
+    w = struct.pack('<I', width)
+    h = struct.pack('<I', height)
+    mode_byte = struct.pack('<B', {'mono': 0, 'spot2': 1, 'spot4': 2, 'rgb': 3}.get(mode, 0))
+    edges_byte = struct.pack('<B', 1 if edges == 'silhouette+detail' else 0)
+    seed_bytes = struct.pack('<i', seed)
+    stats_count = struct.pack('<I', stats.get('count', len(dots)))
+
+    dot_data = b''
+    for d in dots:
+        dot_data += struct.pack('<ffffff', d[0], d[1], d[2], d[3], d[4], d[5])
+
+    return magic + version + count + w + h + mode_byte + edges_byte + seed_bytes + stats_count + dot_data
+
+
 def main():
     in_path = sys.argv[1]
     out_path = sys.argv[2]
     max_dots = int(sys.argv[3]) if len(sys.argv) > 3 else 50000
     invert_tone = '--invert-tone' in sys.argv
     mode = 'mono'
-    if '--mode' in sys.argv:
-        idx = sys.argv.index('--mode')
-        if idx + 1 < len(sys.argv):
-            mode = sys.argv[idx + 1]
+    tile_cols = 0
+    tile_rows = 0
+    bleed_mm = 3.0
+
+    # Parse additional args
+    i = 4
+    while i < len(sys.argv):
+        if sys.argv[i] == '--mode' and i + 1 < len(sys.argv):
+            mode = sys.argv[i + 1]
+            i += 2
+        elif sys.argv[i] == '--tile-cols' and i + 1 < len(sys.argv):
+            tile_cols = int(sys.argv[i + 1])
+            i += 2
+        elif sys.argv[i] == '--tile-rows' and i + 1 < len(sys.argv):
+            tile_rows = int(sys.argv[i + 1])
+            i += 2
+        elif sys.argv[i] == '--bleed' and i + 1 < len(sys.argv):
+            bleed_mm = float(sys.argv[i + 1])
+            i += 2
+        else:
+            i += 1
 
     from PIL import Image
     img = Image.open(in_path).convert('RGBA')
@@ -172,7 +224,7 @@ def main():
     skip = max(1, int(math.sqrt(total / target_pixels)))
     sw = max(8, iw // skip)
     sh = max(8, ih // skip)
-    img_small = img.resize((sw, sh), Image.LANCZOS)
+    img_small = img.resize((sw, sh), Image.Resampling.LANCZOS)
     data = np.array(img_small)
 
     # Tone (luminance)
@@ -323,10 +375,26 @@ def main():
         "mode": mode,
         "edges": "silhouette+detail",
         "importance_mask": True,
+        "stats": {"count": len(dots)},
     }
+
+    # Add print tiling metadata
+    if tile_cols > 0 and tile_rows > 0:
+        output["stats"]["tiling"] = {
+            "cols": tile_cols,
+            "rows": tile_rows,
+            "bleedMm": bleed_mm,
+        }
+
     with open(out_path, 'w') as f:
         json.dump(output, f)
-    print(f"  wrote {len(dots)} dots to {out_path} (mode={mode})")
+
+    # Also write packed binary version for large templates
+    bin_path = out_path.replace('.json', '.bin')
+    binary_data = pack_binary(dots, iw, ih, mode, "silhouette+detail", 1701, output["stats"])
+    with open(bin_path, 'wb') as f:
+        f.write(binary_data)
+    print(f"  wrote {len(dots)} dots to {out_path} (mode={mode}, binary={bin_path})")
 
 if __name__ == "__main__":
     main()
