@@ -94,7 +94,8 @@ async function runCompileJob(job, projectId, dotDensity = 50000, mode = 'mono') 
 
 function runWorker(src, out, dots, mode = 'mono') {
   return new Promise((resolve, reject) => {
-    const pythonPath = process.env.PYTHON || process.env.HERESMESGEMENV || '/usr/bin/python3';
+    const pythonPath = process.env.PYTHON || process.env.HERESMESGEMENV ||
+    '/home/shaun/.hermes/hermes-agent/venv/bin/python3' || '/usr/bin/python3';
     const args = [path.join(ROOT, 'worker', 'image_to_dots.py'), src, out, String(dots)];
     if (process.env.INVERT_TONE === '1') args.push('--invert-tone');
     if (mode && mode !== 'mono') args.push('--mode', mode);
